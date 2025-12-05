@@ -23,7 +23,6 @@
       overflow-x: hidden;
     }
 
-    /* Snow canvas */
     #snowCanvas {
       position: fixed;
       inset: 0;
@@ -59,18 +58,6 @@
       border-radius: 50%;
       border: 8px solid #f9fafb;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
-      background: conic-gradient(
-        #ef4444 0deg 36deg,
-        #f97316 36deg 72deg,
-        #eab308 72deg 108deg,
-        #22c55e 108deg 144deg,
-        #14b8a6 144deg 180deg,
-        #0ea5e9 180deg 216deg,
-        #6366f1 216deg 252deg,
-        #a855f7 252deg 288deg,
-        #ec4899 288deg 324deg,
-        #f97373 324deg 360deg
-      );
       display: flex;
       align-items: center;
       justify-content: center;
@@ -147,9 +134,16 @@
       margin-bottom: 1.5rem;
     }
 
-    .movie-list {
-      max-width: 520px;
+    .movie-panel {
+      max-width: 720px;
       width: 100%;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    .movie-list,
+    .movie-editor {
       background: rgba(15, 23, 42, 0.9);
       border-radius: 16px;
       padding: 1rem 1.25rem 1.25rem;
@@ -157,7 +151,8 @@
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
     }
 
-    .movie-list h2 {
+    .movie-list h2,
+    .movie-editor h2 {
       font-size: 1rem;
       margin: 0 0 0.5rem;
       text-align: center;
@@ -180,6 +175,54 @@
       margin-top: 0.4rem;
     }
 
+    .movie-editor textarea {
+      width: 100%;
+      min-height: 180px;
+      border-radius: 10px;
+      border: 1px solid #374151;
+      background: #020617;
+      color: #f9fafb;
+      padding: 0.5rem 0.75rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      resize: vertical;
+    }
+
+    .movie-editor textarea:focus {
+      outline: 2px solid #22c55e;
+      outline-offset: 1px;
+    }
+
+    .update-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-top: 0.6rem;
+    }
+
+    .update-button {
+      padding: 0.4rem 1rem;
+      border-radius: 999px;
+      border: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(to right, #38bdf8, #0ea5e9);
+      color: #022c22;
+      box-shadow: 0 4px 12px rgba(56, 189, 248, 0.4);
+      white-space: nowrap;
+    }
+
+    .update-message {
+      font-size: 0.8rem;
+      color: #e5e7eb;
+    }
+
+    .update-message.error {
+      color: #fecaca;
+    }
+
     @media (min-width: 900px) {
       body {
         padding-top: 3rem;
@@ -189,6 +232,9 @@
       }
       .wheel-container {
         width: 360px;
+      }
+      .movie-panel {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       }
     }
   </style>
@@ -213,26 +259,30 @@
 
   <div id="result" class="result"></div>
 
-  <div class="movie-list">
-    <h2>Movies on the Wheel</h2>
-    <ol id="movieList">
-      <li>It’s a Wonderful Life (1946)</li>
-      <li>Home Alone (1990)</li>
-      <li>A Christmas Story (1983)</li>
-      <li>Elf (2003)</li>
-      <li>National Lampoon’s Christmas Vacation (1989)</li>
-      <li>The Polar Express (2004)</li>
-      <li>Miracle on 34th Street (1947)</li>
-      <li>How the Grinch Stole Christmas (2000)</li>
-      <li>Die Hard (1988)</li>
-      <li>White Christmas (1954)</li>
-    </ol>
-    <p class="hint">Pointer at the top shows the winner.</p>
+  <div class="movie-panel">
+    <div class="movie-list">
+      <h2>Movies on the Wheel</h2>
+      <ol id="movieList"></ol>
+      <p class="hint">Pointer at the top shows the winner.</p>
+    </div>
+
+    <div class="movie-editor">
+      <h2>Edit Movies</h2>
+      <p class="hint">
+        Enter one movie per line. At least 2 movies. You can change this anytime.
+      </p>
+      <textarea id="movieEditor"></textarea>
+      <div class="update-row">
+        <button id="updateMoviesButton" class="update-button">Update Movies</button>
+        <div id="updateMessage" class="update-message"></div>
+      </div>
+    </div>
   </div>
 
   <script>
     (function () {
-      const movies = [
+      // ----- Initial movies -----
+      let movies = [
         "It’s a Wonderful Life (1946)",
         "Home Alone (1990)",
         "A Christmas Story (1983)",
@@ -248,13 +298,62 @@
       const wheel = document.getElementById("wheel");
       const spinButton = document.getElementById("spinButton");
       const result = document.getElementById("result");
+      const movieList = document.getElementById("movieList");
+      const movieEditor = document.getElementById("movieEditor");
+      const updateMoviesButton = document.getElementById("updateMoviesButton");
+      const updateMessage = document.getElementById("updateMessage");
 
-      const sliceCount = movies.length; // 10
-      const sliceAngle = 360 / sliceCount; // 36 degrees per slice
+      let sliceCount = movies.length;
+      let sliceAngle = 360 / sliceCount;
       let currentRotation = 0;
       let spinning = false;
 
-      // ---- Simple chime using Web Audio API ----
+      // ----- Wheel background (dynamic slices) -----
+      const sliceColors = [
+        "#ef4444",
+        "#f97316",
+        "#eab308",
+        "#22c55e",
+        "#14b8a6",
+        "#0ea5e9",
+        "#6366f1",
+        "#a855f7",
+        "#ec4899",
+        "#f97373",
+        "#84cc16",
+        "#facc15"
+      ];
+
+      function updateWheelBackground() {
+        sliceCount = movies.length;
+        sliceAngle = 360 / sliceCount;
+        const segments = [];
+
+        for (let i = 0; i < sliceCount; i++) {
+          const start = i * sliceAngle;
+          const end = start + sliceAngle;
+          const color = sliceColors[i % sliceColors.length];
+          segments.push(`${color} ${start}deg ${end}deg`);
+        }
+
+        wheel.style.background = `conic-gradient(${segments.join(",")})`;
+      }
+
+      // ----- List + editor rendering -----
+      function renderMovieList() {
+        movieList.innerHTML = "";
+        movies.forEach((title) => {
+          const li = document.createElement("li");
+          li.textContent = title;
+          movieList.appendChild(li);
+        });
+      }
+
+      function renderMovieEditor() {
+        movieEditor.value = movies.join("\n");
+      }
+
+      // ----- Simple chime using Web Audio API -----
       let audioCtx = null;
 
       function getAudioCtx() {
@@ -276,8 +375,11 @@
         const gain1 = ctx.createGain();
 
         osc1.type = "sine";
-        osc1.frequency.setValueAtTime(880, now);      // A5
-        osc1.frequency.linearRampToValueAtTime(1320, now + 0.25); // up a bit
+        osc1.frequency.setValueAtTime(880, now); // A5
+        osc1.frequency.linearRampToValueAtTime(
+          1320,
+          now + 0.25
+        );
 
         gain1.gain.setValueAtTime(0.0001, now);
         gain1.gain.exponentialRampToValueAtTime(0.3, now + 0.02);
@@ -290,30 +392,22 @@
         osc1.stop(now + 0.65);
       }
 
+      // ----- Spin logic -----
       function spin() {
-        if (spinning) return;
+        if (spinning || movies.length < 2) return;
         spinning = true;
         spinButton.disabled = true;
         result.textContent = "Spinning... 🎁";
 
-        // Choose a random movie index
-        const chosenIndex = Math.floor(Math.random() * sliceCount);
+        const chosenIndex = Math.floor(Math.random() * movies.length);
+        const extraTurns = 5 + Math.floor(Math.random() * 3); // 5–7 turns
 
-        // Spin at least 5 full turns for drama
-        const extraTurns = 5 + Math.floor(Math.random() * 3); // 5–7 full turns
-
-        // Center of the chosen slice (offset by 18° so the pointer hits the middle)
         const chosenAngle = chosenIndex * sliceAngle + sliceAngle / 2;
-
-        // We want the pointer at 0° (top), so wheel rotation should bring the chosen
-        // slice's center to the top. Negative because we rotate the wheel, not pointer.
         const targetRotation = -(extraTurns * 360 + chosenAngle);
 
         currentRotation = targetRotation;
-
         wheel.style.transform = `rotate(${currentRotation}deg)`;
 
-        // Match the CSS transition duration (4s)
         setTimeout(() => {
           const movie = movies[chosenIndex];
           result.textContent = `You got: 🎬 ${movie}`;
@@ -325,23 +419,49 @@
 
       spinButton.addEventListener("click", spin);
 
-      // ---- Snowfall background ----
+      // ----- Update movies from editor -----
+      function updateMoviesFromEditor() {
+        const lines = movieEditor.value
+          .split("\n")
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0);
+
+        if (lines.length < 2) {
+          updateMessage.textContent = "Please enter at least 2 movies.";
+          updateMessage.classList.add("error");
+          return;
+        }
+
+        movies = lines;
+        updateMessage.textContent = `Updated ${movies.length} movie${movies.length === 1 ? "" : "s"}.`;
+        updateMessage.classList.remove("error");
+
+        renderMovieList();
+        updateWheelBackground();
+
+        // Reset result & rotation for a clean visual reset
+        result.textContent = "";
+        currentRotation = 0;
+        wheel.style.transform = "rotate(0deg)";
+      }
+
+      updateMoviesButton.addEventListener("click", updateMoviesFromEditor);
+
+      // ----- Snowfall background -----
       const canvas = document.getElementById("snowCanvas");
       const ctx2 = canvas.getContext("2d");
-
       let width = window.innerWidth;
       let height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
 
-      function onResize() {
+      function resizeCanvas() {
         width = window.innerWidth;
         height = window.innerHeight;
         canvas.width = width;
         canvas.height = height;
       }
 
-      window.addEventListener("resize", onResize);
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
 
       const flakes = [];
       const FLAKE_COUNT = 140;
@@ -390,8 +510,12 @@
 
       initFlakes();
       snowLoop();
+
+      // ----- Initial render -----
+      renderMovieList();
+      renderMovieEditor();
+      updateWheelBackground();
     })();
   </script>
 </body>
 </html>
-
