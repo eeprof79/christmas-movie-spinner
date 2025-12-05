@@ -4,9 +4,13 @@
   <meta charset="UTF-8" />
   <title>Christmas Movie Spinner</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top, #10304a, #050812 70%);
+      background: radial-gradient(circle at top, #0b2940, #050812 70%);
       color: #f9fafb;
       display: flex;
       flex-direction: column;
@@ -15,7 +19,18 @@
       min-height: 100vh;
       margin: 0;
       padding: 2rem 1rem 3rem;
-      box-sizing: border-box;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Snow canvas */
+    #snowCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
     }
 
     h1 {
@@ -127,7 +142,7 @@
 
     .result {
       min-height: 2.4rem;
-      font-size: 1.05rem;
+      font-size: 1.1rem;
       text-align: center;
       margin-bottom: 1.5rem;
     }
@@ -135,7 +150,7 @@
     .movie-list {
       max-width: 520px;
       width: 100%;
-      background: rgba(15, 23, 42, 0.85);
+      background: rgba(15, 23, 42, 0.9);
       border-radius: 16px;
       padding: 1rem 1.25rem 1.25rem;
       box-sizing: border-box;
@@ -164,9 +179,23 @@
       color: #9ca3af;
       margin-top: 0.4rem;
     }
+
+    @media (min-width: 900px) {
+      body {
+        padding-top: 3rem;
+      }
+      .result {
+        font-size: 1.25rem;
+      }
+      .wheel-container {
+        width: 360px;
+      }
+    }
   </style>
 </head>
 <body>
+  <canvas id="snowCanvas"></canvas>
+
   <h1>Christmas Movie Spinner 🎄</h1>
   <p class="subtitle">Click the button and let fate pick tonight’s movie.</p>
 
@@ -225,6 +254,42 @@
       let currentRotation = 0;
       let spinning = false;
 
+      // ---- Simple chime using Web Audio API ----
+      let audioCtx = null;
+
+      function getAudioCtx() {
+        if (!audioCtx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return null;
+          audioCtx = new AC();
+        }
+        return audioCtx;
+      }
+
+      function playChime() {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+
+        const now = ctx.currentTime;
+
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+
+        osc1.type = "sine";
+        osc1.frequency.setValueAtTime(880, now);      // A5
+        osc1.frequency.linearRampToValueAtTime(1320, now + 0.25); // up a bit
+
+        gain1.gain.setValueAtTime(0.0001, now);
+        gain1.gain.exponentialRampToValueAtTime(0.3, now + 0.02);
+        gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+
+        osc1.start(now);
+        osc1.stop(now + 0.65);
+      }
+
       function spin() {
         if (spinning) return;
         spinning = true;
@@ -252,13 +317,81 @@
         setTimeout(() => {
           const movie = movies[chosenIndex];
           result.textContent = `You got: 🎬 ${movie}`;
+          playChime();
           spinning = false;
           spinButton.disabled = false;
         }, 4000);
       }
 
       spinButton.addEventListener("click", spin);
+
+      // ---- Snowfall background ----
+      const canvas = document.getElementById("snowCanvas");
+      const ctx2 = canvas.getContext("2d");
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+
+      function onResize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      window.addEventListener("resize", onResize);
+
+      const flakes = [];
+      const FLAKE_COUNT = 140;
+
+      function initFlakes() {
+        flakes.length = 0;
+        for (let i = 0; i < FLAKE_COUNT; i++) {
+          flakes.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            r: 1 + Math.random() * 2.2,
+            speedY: 0.4 + Math.random() * 1.1,
+            drift: (Math.random() - 0.5) * 0.3
+          });
+        }
+      }
+
+      function drawSnow() {
+        ctx2.clearRect(0, 0, width, height);
+        ctx2.fillStyle = "rgba(255, 255, 255, 0.85)";
+        for (const f of flakes) {
+          ctx2.beginPath();
+          ctx2.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+          ctx2.fill();
+        }
+      }
+
+      function updateSnow() {
+        for (const f of flakes) {
+          f.y += f.speedY;
+          f.x += f.drift;
+          if (f.y > height + 5) {
+            f.y = -5;
+            f.x = Math.random() * width;
+          }
+          if (f.x < -10) f.x = width + 10;
+          if (f.x > width + 10) f.x = -10;
+        }
+      }
+
+      function snowLoop() {
+        updateSnow();
+        drawSnow();
+        requestAnimationFrame(snowLoop);
+      }
+
+      initFlakes();
+      snowLoop();
     })();
   </script>
 </body>
 </html>
+
