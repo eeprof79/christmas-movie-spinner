@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Christmas Movie Spinner</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #10304a, #050812 70%);
+      color: #f9fafb;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      margin: 0;
+      padding: 2rem 1rem 3rem;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      margin-bottom: 0.25rem;
+      text-align: center;
+    }
+
+    p.subtitle {
+      margin-top: 0;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      font-size: 0.95rem;
+      color: #e5e7eb;
+    }
+
+    .wheel-container {
+      position: relative;
+      width: min(340px, 80vw);
+      aspect-ratio: 1 / 1;
+      margin-bottom: 1.5rem;
+    }
+
+    .wheel {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 8px solid #f9fafb;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+      background: conic-gradient(
+        #ef4444 0deg 36deg,
+        #f97316 36deg 72deg,
+        #eab308 72deg 108deg,
+        #22c55e 108deg 144deg,
+        #14b8a6 144deg 180deg,
+        #0ea5e9 180deg 216deg,
+        #6366f1 216deg 252deg,
+        #a855f7 252deg 288deg,
+        #ec4899 288deg 324deg,
+        #f97373 324deg 360deg
+      );
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transform: rotate(0deg);
+      transition: transform 4s cubic-bezier(0.2, 0.8, 0.1, 1);
+      overflow: hidden;
+    }
+
+    .wheel-label {
+      position: absolute;
+      inset: 18%;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.94);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 0.75rem;
+      box-sizing: border-box;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .pointer {
+      position: absolute;
+      top: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 16px solid transparent;
+      border-right: 16px solid transparent;
+      border-bottom: 24px solid #fbbf24;
+      filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.5));
+      z-index: 2;
+    }
+
+    .spin-button {
+      padding: 0.75rem 1.75rem;
+      border-radius: 999px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 1rem;
+      background: linear-gradient(to right, #22c55e, #16a34a);
+      color: #022c22;
+      box-shadow: 0 8px 18px rgba(34, 197, 94, 0.4);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+    }
+
+    .spin-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 22px rgba(34, 197, 94, 0.5);
+    }
+
+    .spin-button:active {
+      transform: translateY(1px) scale(0.98);
+      box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4);
+    }
+
+    .spin-button:disabled {
+      opacity: 0.5;
+      cursor: default;
+      transform: none;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.6);
+    }
+
+    .result {
+      min-height: 2.4rem;
+      font-size: 1.05rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .movie-list {
+      max-width: 520px;
+      width: 100%;
+      background: rgba(15, 23, 42, 0.85);
+      border-radius: 16px;
+      padding: 1rem 1.25rem 1.25rem;
+      box-sizing: border-box;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
+    }
+
+    .movie-list h2 {
+      font-size: 1rem;
+      margin: 0 0 0.5rem;
+      text-align: center;
+    }
+
+    .movie-list ol {
+      margin: 0;
+      padding-left: 1.25rem;
+      font-size: 0.9rem;
+    }
+
+    .movie-list li {
+      margin: 0.15rem 0;
+    }
+
+    .hint {
+      font-size: 0.8rem;
+      text-align: center;
+      color: #9ca3af;
+      margin-top: 0.4rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Christmas Movie Spinner 🎄</h1>
+  <p class="subtitle">Click the button and let fate pick tonight’s movie.</p>
+
+  <div class="wheel-container">
+    <div class="pointer"></div>
+    <div id="wheel" class="wheel">
+      <div class="wheel-label">
+        Spin to choose a<br />
+        Christmas movie!
+      </div>
+    </div>
+  </div>
+
+  <button id="spinButton" class="spin-button">Spin the Wheel</button>
+
+  <div id="result" class="result"></div>
+
+  <div class="movie-list">
+    <h2>Movies on the Wheel</h2>
+    <ol id="movieList">
+      <li>It’s a Wonderful Life (1946)</li>
+      <li>Home Alone (1990)</li>
+      <li>A Christmas Story (1983)</li>
+      <li>Elf (2003)</li>
+      <li>National Lampoon’s Christmas Vacation (1989)</li>
+      <li>The Polar Express (2004)</li>
+      <li>Miracle on 34th Street (1947)</li>
+      <li>How the Grinch Stole Christmas (2000)</li>
+      <li>Die Hard (1988)</li>
+      <li>White Christmas (1954)</li>
+    </ol>
+    <p class="hint">Pointer at the top shows the winner.</p>
+  </div>
+
+  <script>
+    (function () {
+      const movies = [
+        "It’s a Wonderful Life (1946)",
+        "Home Alone (1990)",
+        "A Christmas Story (1983)",
+        "Elf (2003)",
+        "National Lampoon’s Christmas Vacation (1989)",
+        "The Polar Express (2004)",
+        "Miracle on 34th Street (1947)",
+        "How the Grinch Stole Christmas (2000)",
+        "Die Hard (1988)",
+        "White Christmas (1954)"
+      ];
+
+      const wheel = document.getElementById("wheel");
+      const spinButton = document.getElementById("spinButton");
+      const result = document.getElementById("result");
+
+      const sliceCount = movies.length; // 10
+      const sliceAngle = 360 / sliceCount; // 36 degrees per slice
+      let currentRotation = 0;
+      let spinning = false;
+
+      function spin() {
+        if (spinning) return;
+        spinning = true;
+        spinButton.disabled = true;
+        result.textContent = "Spinning... 🎁";
+
+        // Choose a random movie index
+        const chosenIndex = Math.floor(Math.random() * sliceCount);
+
+        // Spin at least 5 full turns for drama
+        const extraTurns = 5 + Math.floor(Math.random() * 3); // 5–7 full turns
+
+        // Center of the chosen slice (offset by 18° so the pointer hits the middle)
+        const chosenAngle = chosenIndex * sliceAngle + sliceAngle / 2;
+
+        // We want the pointer at 0° (top), so wheel rotation should bring the chosen
+        // slice's center to the top. Negative because we rotate the wheel, not pointer.
+        const targetRotation = -(extraTurns * 360 + chosenAngle);
+
+        currentRotation = targetRotation;
+
+        wheel.style.transform = `rotate(${currentRotation}deg)`;
+
+        // Match the CSS transition duration (4s)
+        setTimeout(() => {
+          const movie = movies[chosenIndex];
+          result.textContent = `You got: 🎬 ${movie}`;
+          spinning = false;
+          spinButton.disabled = false;
+        }, 4000);
+      }
+
+      spinButton.addEventListener("click", spin);
+    })();
+  </script>
+</body>
+</html>
